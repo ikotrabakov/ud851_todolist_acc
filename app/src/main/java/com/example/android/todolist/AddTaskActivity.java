@@ -69,7 +69,19 @@ public class AddTaskActivity extends AppCompatActivity {
         if (intent != null && intent.hasExtra(EXTRA_TASK_ID)) {
             mButton.setText(R.string.update_button);
             if (mTaskId == DEFAULT_TASK_ID) {
-                // populate the UI
+                mTaskId = intent.getIntExtra(EXTRA_TASK_ID, DEFAULT_TASK_ID);
+                AppExecutors.getsInstance().diskIO().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        final TaskEntry taskEntry = mDb.taskDao().loadTaskById(mTaskId);
+                        runOnUiThread(new Runnable() {
+                            @Override
+                            public void run() {
+                                populateUI(taskEntry);
+                            }
+                        });
+                    }
+                });
             }
         }
     }
@@ -102,7 +114,12 @@ public class AddTaskActivity extends AppCompatActivity {
      * @param task the taskEntry to populate the UI
      */
     private void populateUI(TaskEntry task) {
+        if (task == null) {
+            return;
+        }
 
+        mEditText.setText(task.getDescription());
+        setPriorityInViews(task.getPriority());
     }
 
     /**
@@ -118,7 +135,12 @@ public class AddTaskActivity extends AppCompatActivity {
         AppExecutors.getsInstance().diskIO().execute(new Runnable() {
             @Override
             public void run() {
-                mDb.taskDao().insertTask(taskEntry);
+                if (mTaskId == DEFAULT_TASK_ID) {
+                    mDb.taskDao().insertTask(taskEntry);
+                } else {
+                    taskEntry.setId(mTaskId);
+                    mDb.taskDao().updateTask(taskEntry);
+                }
                 finish();
             }
         });
